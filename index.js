@@ -36,15 +36,16 @@ async function runLeaderBoardUpdate() {
   fs.writeFileSync('./events_' + now + '.json', JSON.stringify(events));
   */
 
-  await publisher.connect();
-
   await publisher.publish('leaderboardEvent', JSON.stringify({ leaderboard: enhancedLeaderboard, events: events }));
 
   console.log('All done!~');
 }
 
-runLeaderBoardUpdate();
-setInterval(runLeaderBoardUpdate, LEADERBOARD_UPDATE_RATE);
+(async () => {
+  await publisher.connect();
+  runLeaderBoardUpdate();
+  setInterval(runLeaderBoardUpdate, LEADERBOARD_UPDATE_RATE);
+})();
 
 function generateEvents(players) {
   const rankGain = [];
