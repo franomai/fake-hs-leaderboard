@@ -11,17 +11,21 @@ import fs from 'fs';
 const LEADERBOARD_UPDATE_RATE = 1000 * 60 * 5;
 const regions = ['US', 'EU', 'AP'];
 const REPLAY_USER_PERCENTAGE = 0.7;
-const STREAMER_PERCENTAGE = 0.2;
-const playerStore = new PlayerStore(REPLAY_USER_PERCENTAGE, STREAMER_PERCENTAGE);
+const STREAMER_PERCENTAGE = 1;
+const stores = {};
+for (let region of regions) {
+  stores[region] = new PlayerStore(region, REPLAY_USER_PERCENTAGE, STREAMER_PERCENTAGE);
+}
 const publisher = redis.createClient();
 
 async function runLeaderBoardUpdate(region) {
   console.log(`Running leaderboard update for ${region}, one sec...`);
   const result = await getCurrentLeaderBoard(region);
+  const playerStore = stores[region];
   playerStore.updateStore(result);
 
   const enhancedLeaderboard = playerStore.getCurrentLeaderBoard();
-  const generator = new EventGenerator(playerStore.accounts)
+  const generator = new EventGenerator(playerStore)
   const events = generator.generateEvents();
 
   /*
@@ -32,9 +36,11 @@ async function runLeaderBoardUpdate(region) {
   */
 
   await publisher.publish('leaderboardEvent', JSON.stringify({
-    region: region,
-    timestamp: result.timestamp,
-    leaderboard: enhancedLeaderboard,
+    leaderboard: {
+      region: region,
+      timestamp: result.timestamp,
+      ranks: enhancedLeaderboard
+    },
     events: events
   }));
 

@@ -1,4 +1,7 @@
+import moment from 'moment';
+
 import { getRandomArchtype } from './archtypes.js';
+import { getRandomInt } from './util.js';
 
 export class EventGenerator {
 
@@ -50,7 +53,8 @@ export class EventGenerator {
         lastRank: 200 + ghostCount,
         currentDeck: 0,
         decks: [getRandomArchtype()],
-        replayUser: false
+        replayUser: false,
+        streamInfo: null
       }
       winner ? loser = ghost : winner = ghost;
     }
@@ -59,29 +63,55 @@ export class EventGenerator {
       return null;
     }
 
-    return {
-      player1: this.#generateEventPlayer(winner),
-      player2: this.#generateEventPlayer(loser),
-      winner: 'PLAYER1'
-    }
+    // pick a random time to have this game start at
+    const end = this.players.lastUpdated;
+    const start = this.players.previousLastUpdated || end.clone().subtract(5, 'minutes');
+    const maxDifference = moment.duration(start.diff(end)).as('seconds') + (5 * 60);
+    const gameTime = start.clone().add(getRandomInt(1, Math.floor(maxDifference)), 'seconds');
 
+    return {
+      matchStartTimestamp: gameTime,
+      region: this.players.region,
+      player1Info: this.#generateEventPlayer(winner),
+      player2Info: this.#generateEventPlayer(loser),
+      winner: 'PLAYER1'
+    };
   }
 
   #generateEventPlayer(player) {
     const deckInfo = player.decks[player.currentDeck];
-    return {
-      name: player.accountName,
-      id: player.accountId,
-      rank: player.lastRank,
-      replayUser: player.replayUser,
-      deckInfo: {
-        className: deckInfo.class,
-        classId: deckInfo.classId,
-        archtypeName: deckInfo.name,
-        archtypeId: deckInfo.archtypeId,
-        deckList: player.replayUser ? deckInfo.deckList : null
-      }
+    const vod = player.streamInfo ? player.streamInfo.vods[player.streamInfo.nextVod] : null;
+    if (vod) {
+      player.streamInfo.nextVod = (player.streamInfo.nextVod + 1) % player.streamInfo.vods.length;
     }
+    return {
+      user: {
+        name: player.accountName,
+        id: (player.accountId + '').padStart(4, '0'),
+        streamLinks: player.streamInfo ? [{
+          platform: 'twitch',
+          url: `https://www.twitch.tv/${player.streamInfo.channel}`
+        }] : null
+      },
+      rank: player.lastRank,
+      deck: {
+        deckArchetype: {
+          deckClass: {
+            deckClassName: deckInfo.class,
+            hsreplayId: deckInfo.classId,
+          },
+          deckArchetypeName: deckInfo.name,
+          hsreplayId: deckInfo.archtypeId,
+        },
+        hsreplayId: player.replayUser ? deckInfo.deckList.hsReplayId : null,
+        deckCardsId: player.replayUser ? deckInfo.deckList.deckString : null
+      },
+      usedHsReplay: player.replayUser,
+      vod: vod ? {
+        platform: 'twitch',
+        url: `https://www.twitch.tv/videos/${vod}`
+      } : null
+    };
   }
 
 
@@ -98,7 +128,7 @@ export class EventGenerator {
       gains: [], // 💪
       losses: []
     };
-    for (let account of Object.values(this.players)) {
+    for (let account of Object.values(this.players.accounts)) {
       for (let player of account) {
           if (this.#isGameRelatedMovement(player.currentRank, player.rankChange)) {
             if (player.rankChange > 0) {

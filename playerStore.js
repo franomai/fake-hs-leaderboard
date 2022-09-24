@@ -13,7 +13,7 @@ export class PlayerStore {
     // A collection of known vods to pick from
     // IRL these vods would have timestamps instead of links to the whole video
     static STREAMER_INFO = {
-      channel: 'https://www.twitch.tv/pizzahs',
+      channel: 'pizzahs',
       vods: [
         '1581316417', '1582189411', '1584872718', '1585796850', '1586645497',
         '1587618973', '1599359151', '1588615869', '1591274426', '1592152966',
@@ -21,7 +21,9 @@ export class PlayerStore {
       ]
     }
 
-    constructor(replayUserPercentage, streamerPercentage) {
+    constructor(region, replayUserPercentage, streamerPercentage) {
+        this.region = region;
+
         // In memory store for players we have already seen
         // This allows us to simulate some trends between leaderboard update invocations
         this.accounts = {};
@@ -34,8 +36,8 @@ export class PlayerStore {
         this.streamerPercentage = streamerPercentage;
 
         // Used to help generate events by giving context to rank shift data
-        this.currentUpdateTime = null;
-        this.previousUpdateTime = null;
+        this.lastUpdated = null;
+        this.previousLastUpdated = null;
     }
 
     updateStore(leaderboard) {
@@ -50,8 +52,14 @@ export class PlayerStore {
           for (let player of account) {
               if (player.currentRank) {
                 leaderboardPlayers.push({
-                  name: player.accountName,
-                  id: player.accountId,
+                  user: {
+                    name: player.accountName,
+                    id: (player.accountId + '').padStart(4, '0'),
+                    streamLinks: player.streamInfo ? [{
+                      platform: 'twitch',
+                      url: `https://www.twitch.tv/${player.streamInfo.channel}`
+                    }] : null
+                  },
                   rank: player.currentRank,
                   rankChange: player.rankChange,
                 });
@@ -67,7 +75,6 @@ export class PlayerStore {
             for (let player of account) {
                 if (player.matched) {
                     const info = player.playerTypeInfo;
-                    console.log(player);
                     switch (player.playerType) {
                         case 'ONE_TRICK':
                             // Do nothing, their deck will not change
@@ -108,8 +115,8 @@ export class PlayerStore {
     }
 
     #refreshStore(timestamp) {
-        this.previousUpdateTime = this.currentUpdateTime;
-        this.currentUpdateTime = timestamp;
+        this.previousLastUpdated = this.lastUpdated;
+        this.lastUpdated = timestamp;
         for (let account of Object.values(this.accounts)) {
             for (let player of account) {
                 player.lastRank = player.currentRank;
