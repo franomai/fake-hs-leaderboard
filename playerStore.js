@@ -10,18 +10,36 @@ export class PlayerStore {
         'TIME_SWAP': {minDecks: 3, maxDecks: 5},
     };
 
-    constructor(replayUserPercentage) {
+    // A collection of known vods to pick from
+    // IRL these vods would have timestamps instead of links to the whole video
+    static STREAMER_INFO = {
+      channel: 'https://www.twitch.tv/pizzahs',
+      vods: [
+        '1581316417', '1582189411', '1584872718', '1585796850', '1586645497',
+        '1587618973', '1599359151', '1588615869', '1591274426', '1592152966',
+        '1593008784', '1594025491', '1594984947', '1597546689', '1598431033'
+      ]
+    }
+
+    constructor(replayUserPercentage, streamerPercentage) {
         // In memory store for players we have already seen
-        // This allows us to simulate some trends between leaderboard update evocations
+        // This allows us to simulate some trends between leaderboard update invocations
         this.accounts = {};
 
         // Represents how many people we should have complete data for
         // Take this in from the construct for ease of re-use
         this.replayUserPercentage = replayUserPercentage;
+
+        // Represents how many people earn 5 dollars an hour playing children's card games
+        this.streamerPercentage = streamerPercentage;
+
+        // Used to help generate events by giving context to rank shift data
+        this.currentUpdateTime = null;
+        this.previousUpdateTime = null;
     }
 
     updateStore(leaderboard) {
-        this.#refreshStore();
+        this.#refreshStore(leaderboard.timestamp);
         leaderboard.rows.forEach(player => this.#processPlayer(player));
         this.#updatePlayerDecks();
     }
@@ -89,7 +107,9 @@ export class PlayerStore {
         }
     }
 
-    #refreshStore() {
+    #refreshStore(timestamp) {
+        this.previousUpdateTime = this.currentUpdateTime;
+        this.currentUpdateTime = timestamp;
         for (let account of Object.values(this.accounts)) {
             for (let player of account) {
                 player.lastRank = player.currentRank;
@@ -137,6 +157,7 @@ export class PlayerStore {
 
     #createNewPlayer(name, maxId, rank) {
         const isUsingHSReplay = Math.random() <= this.replayUserPercentage;
+        const isStreamer = isUsingHSReplay && (Math.random() <= this.streamerPercentage);
         const playerType = getRandomElement(Object.keys(PlayerStore.PLAYER_TYPES));
         const numDecks = getRandomInt(PlayerStore.PLAYER_TYPES[playerType].minDecks, PlayerStore.PLAYER_TYPES[playerType].maxDecks);
         const decks = this.#getDeckCollection(numDecks, !isUsingHSReplay) ;
@@ -165,7 +186,10 @@ export class PlayerStore {
             currentDeck: 0,
             decks: decks,
             replayUser: isUsingHSReplay,
-            matched: true
+            matched: true,
+            streamInfo: isStreamer ? Object.assign({
+              nextVod: 0
+            }, PlayerStore.STREAMER_INFO) : null
         }
     }
 
