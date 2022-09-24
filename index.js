@@ -9,7 +9,9 @@ import fs from 'fs';
 
 const LEADERBOARD_UPDATE_RATE = 1000 * 60 * 5;
 const GHOST_NAME = 'rezplz';
-const playerStore = new PlayerStore(0.7);
+const regions = ['US', 'EU', 'AP'];
+const REPLAY_USER_PERCENTAGE = 0.7;
+const playerStore = new PlayerStore(REPLAY_USER_PERCENTAGE);
 const publisher = redis.createClient();
 
 function isGameRelatedMovement(rank, rankDiff) {
@@ -21,9 +23,9 @@ function isGameRelatedMovement(rank, rankDiff) {
 }
 
 
-async function runLeaderBoardUpdate() {
-  console.log('Running leaderboard update, one sec...');
-  const result = await getCurrentLeaderBoard();
+async function runLeaderBoardUpdate(region) {
+  console.log(`Running leaderboard update for ${region}, one sec...`);
+  const result = await getCurrentLeaderBoard(region);
   playerStore.updateStore(result);
 
   const enhancedLeaderboard = playerStore.getCurrentLeaderBoard();
@@ -36,15 +38,22 @@ async function runLeaderBoardUpdate() {
   fs.writeFileSync('./events_' + now + '.json', JSON.stringify(events));
   */
 
-  await publisher.publish('leaderboardEvent', JSON.stringify({ leaderboard: enhancedLeaderboard, events: events }));
+  await publisher.publish('leaderboardEvent', JSON.stringify({
+    region: region,
+    timestamp: result.timestamp,
+    leaderboard: enhancedLeaderboard,
+    events: events
+  }));
 
-  console.log('All done!~');
+  console.log(`${region} all done!~`);
 }
 
 (async () => {
   await publisher.connect();
-  runLeaderBoardUpdate();
-  setInterval(runLeaderBoardUpdate, LEADERBOARD_UPDATE_RATE);
+  regions.forEach(region => {
+    runLeaderBoardUpdate(region);
+    setInterval(runLeaderBoardUpdate, LEADERBOARD_UPDATE_RATE, region);
+  });
 })();
 
 function generateEvents(players) {
