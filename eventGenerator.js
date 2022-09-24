@@ -66,8 +66,9 @@ export class EventGenerator {
     // pick a random time to have this game start at
     const end = this.players.lastUpdated;
     const start = this.players.previousLastUpdated || end.clone().subtract(5, 'minutes');
-    const maxDifference = moment.duration(start.diff(end)).as('seconds') + (5 * 60);
-    const gameTime = start.clone().add(getRandomInt(1, Math.floor(maxDifference)), 'seconds');
+    const maxDifference = end.diff(start, 'seconds') ;
+    const secondsToSubtract = getRandomInt(1, maxDifference) + (5 * 60);
+    const gameTime = end.clone().subtract(secondsToSubtract, 'seconds');
 
     return {
       matchStartTimestamp: gameTime,
