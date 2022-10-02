@@ -27,6 +27,7 @@ async function runLeaderBoardUpdate(region) {
   const enhancedLeaderboard = playerStore.getCurrentLeaderBoard();
   const generator = new EventGenerator(playerStore)
   const events = generator.generateEvents();
+  console.log(events);
 
   /*
   // You can uncomment this if you want to see what the raw data looks like before the message is published
@@ -41,7 +42,7 @@ async function runLeaderBoardUpdate(region) {
       timestamp: result.timestamp,
       ranks: enhancedLeaderboard
     },
-    events: events
+    events: { events: events }
   }));
 
   console.log(`${region} all done!~`);
