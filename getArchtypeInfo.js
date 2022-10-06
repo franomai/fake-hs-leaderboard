@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { parse } from 'node-html-parser';
 
 // From ArchetypeSignature.tsx on hsreplay
 const CORE_THRESHOLD = 0.8;
