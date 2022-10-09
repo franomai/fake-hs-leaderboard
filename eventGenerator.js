@@ -146,7 +146,7 @@ export class EventGenerator {
   #isGameRelatedMovement(rank, rankDiff) {
     if (rank === null || rankDiff === null) return false;
     const movement = Math.abs(rankDiff);
-    return (movement >= 4) // Any 4 or more change sub 20 is a game - decay is usually only 1-2
+    return (movement >= 5) // Any 5 or more change sub 20 is a game - decay is usually only 1-2
       || (rank < 20  && movement >= 2) // At ranks 20 - 5 it's usually a bit trickier with some games not resulting in large moves
       || (rank < 5 && rankDiff > 0); // At rank 5 plus it's nigh impossible but we will assume a positive movement is a win
   }
